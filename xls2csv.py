@@ -13,6 +13,7 @@ from xlrd import open_workbook
 from sys import argv
 from csv import writer
 from re import compile
+from os import path
 
 
 
@@ -27,6 +28,11 @@ class Iterator(object):
         self._state = self._state_init
 
     def next(self, line):
+        def clean(e):
+            if isinstance(e, str):
+                return e.replace('\n', ' ')
+            return e
+        line = [clean(e) for e in line]
         self._state(line)
 
     def files(self):
@@ -72,10 +78,15 @@ class Iterator(object):
             assert self._state == self._state_parse_table, f'Should continue parsing table but: {self._state}'
 
     def _state_end_table(self):
+        rows = self._table_rows
         MINIMUM_TABLE_ROWS = 3
-        if self._table_rows and len(self._table_rows) >= MINIMUM_TABLE_ROWS:
+        isgood = (rows
+                    and len(rows) >= MINIMUM_TABLE_ROWS
+                    and not isbottomasterix(rows)
+        )
+        if isgood:
             assert self._part_table_name
-            self._files.append((self._part_table_name, self._table_rows.copy()))
+            self._files.append((self._part_table_name, rows.copy()))
         else:
             self._part_table_count -= 1
         self._part_table_name = None
@@ -97,10 +108,17 @@ def line_ispartheader(line):
     return part_header_re.match(ljoin(line))
 
 def line_isempty(line):
-    return all(not e.strip() for e in line)
+    return not isinstance(line, list) or all(not e or not str(e).strip() for e in line)
 
 def ljoin(line):
     return ' '.join(str(e) for e in line)
+
+asterixre = compile(r'^\s*\(\d+\*\)\s*-\s*.*')
+def isbottomasterix(rows):
+    if not rows or not len(rows)>1:
+        return False
+    r = ''.join(rows[0])
+    return asterixre.match(r)
 
 basefilenamere = compile(r'(.*)(\.(csv|xls))?')
 
@@ -118,8 +136,10 @@ def parser(xlsfilepath):
         iterator.next(sh.row_values(rindex))
     # Output:
     for fname, lines in iterator.files():
-        fname = f"{getbasefilename(xlsfilepath)}_{getbasefilename(fname)}.csv"
-        with open(fname, 'w') as fhandler:
+        bname = path.basename(xlsfilepath).replace('.xls', '')
+        outfile = f"{bname}_{getbasefilename(fname)}.csv"
+        outfile = path.join(path.dirname(xlsfilepath), outfile)
+        with open(outfile, 'w') as fhandler:
             w = writer(fhandler)
             for l in lines:
                 w.writerow(l)
