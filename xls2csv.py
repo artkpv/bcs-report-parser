@@ -115,9 +115,9 @@ def ljoin(line):
 
 asterixre = compile(r'^\s*\(\d+\*\)\s*-\s*.*')
 def isbottomasterix(rows):
-    if not rows or not len(rows)>1:
+    if not rows or not len(rows)>1 or not isinstance(rows[0], list):
         return False
-    r = ''.join(rows[0])
+    r = ''.join(str(e) for e in rows[0])
     return asterixre.match(r)
 
 basefilenamere = compile(r'(.*)(\.(csv|xls))?')
@@ -140,7 +140,7 @@ def parser(xlsfilepath):
         outfile = f"{bname}_{getbasefilename(fname)}.csv"
         outfile = path.join(path.dirname(xlsfilepath), outfile)
         with open(outfile, 'w') as fhandler:
-            w = writer(fhandler)
+            w = writer(fhandler, dialect='excel-tab')
             for l in lines:
                 w.writerow(l)
 
