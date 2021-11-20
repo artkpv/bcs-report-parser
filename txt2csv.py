@@ -14,7 +14,7 @@ def convert2csv(filename):
     assert outfile != filename
     if '_Движение_денежных_средств_' in filename:
         _transactions(filename, outfile)
-    elif ('_Сделки_' in filename or '_сделки' in filename):
+    elif ('_Сделки_' in filename):
         _deals(filename, outfile)
 
 
@@ -29,6 +29,7 @@ def _deals(filename, outfile):
     if fileType:
         with open(filename, mode="r") as readf, open(outfile, mode="w") as writef:
             fileType(readf, writef)
+
 
 def _deals_instruments(readf, writef):
     allreader = CSVReader(readf, dialect=CSVDIALECT)
@@ -53,6 +54,7 @@ def _deals_instruments(readf, writef):
                 cells['ISIN'] = isin
                 wcsv.writerow(cells)
             i = end+1
+
 
 def _deals_forex(readf, writef):
     allreader = CSVReader(readf, dialect=CSVDIALECT)
@@ -83,20 +85,24 @@ def _deals_forex(readf, writef):
                 wcsv.writerow(cells)
             i = end
 
+
 def _transactions(filename, outfile):
-    with open(filename, mode="r") as readf, open(outfile, mode="w") as writef:
+    with open(filename, mode="r") as readf:
         lines = readf.readlines()
         currency = lines[0].split(CSVDIALECT.delimiter)[1]
         rcsv = DictReader(lines[1:-1], dialect=CSVDIALECT)
         myfields = ['Дата', 'Операция', 'Сумма зачисления', 'Сумма списания', 'Валюта']
-        wcsv = DictWriter(writef, fieldnames=myfields, dialect=CSVDIALECT)
-        wcsv.writeheader()
-        for row in rcsv:
-            if 'Итого' in row['Операция']:
-                continue
-            cells = dict((k, row[k]) for k in row if k in myfields)
-            cells['Валюта'] = currency
-            wcsv.writerow(cells)
+        isvalid = 'Операция' in lines[1]
+        if isvalid:
+            with open(outfile, mode="w") as writef:
+                wcsv = DictWriter(writef, fieldnames=myfields, dialect=CSVDIALECT)
+                wcsv.writeheader()
+                for row in rcsv:
+                    if 'Итого' in row['Операция']:
+                        continue
+                    cells = dict((k, row[k]) for k in row if k in myfields)
+                    cells['Валюта'] = currency
+                    wcsv.writerow(cells)
 
 if __name__ == '__main__':
     for f in argv[1:]:

@@ -17,7 +17,6 @@ from os import path, listdir
 from txt2csv import convert2csv
 
 
-
 class Iterator(object):
     def __init__(self):
         self._files = []
