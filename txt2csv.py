@@ -112,7 +112,17 @@ class TXT2CSV(object):
                         cells['Валюта'] = currency
                         for k in self._fileinfo:
                             cells[k] = self._fileinfo[k]
-                        wcsv.writerow(cells)
+                        if float(cells['Сумма зачисления']) > 0 and float(cells['Сумма списания']) > 0:
+                            t = cells['Сумма зачисления']
+                            cells['Сумма зачисления'] = None
+                            wcsv.writerow(cells)
+                            cells['Сумма зачисления'] = t
+                            cells['Сумма списания'] = None
+                            wcsv.writerow(cells)
+                        else:
+                            wcsv.writerow(cells)
+
+
 
 
 if __name__ == '__main__':
