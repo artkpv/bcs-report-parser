@@ -14,7 +14,8 @@ from sys import argv
 from csv import writer
 from re import compile
 from os import path, listdir
-from txt2csv import convert2csv
+from txt2csv import TXT2CSV
+from collections import defaultdict
 
 
 class Iterator(object):
@@ -26,6 +27,7 @@ class Iterator(object):
         self._part_table_count = 0
         self._part_table_name = None
         self._state = self._state_init
+        self.fileinfo = defaultdict()
 
     def next(self, line):
         def clean(e):
@@ -41,7 +43,15 @@ class Iterator(object):
     def _state_init(self, line):
         if line_ispartheader(line):
             self._state_part_header(line)
+        self._gather_info(line)
         # else ignore this line
+
+    def _gather_info(self, line):
+        key = 'Генеральное соглашение'
+        i = next((i for i, e in enumerate(line) if key in e), -1)
+        if i >= 0:
+            val = next((e for e in line[i+1:] if e), None)
+            self.fileinfo[key] = val
 
     def _state_part_header(self, line):
         assert line_ispartheader(line)
@@ -127,7 +137,7 @@ def getbasefilename(filename):
     assert m, f"could not get base file name for '{filename}'"
     return m.group(1)
 
-def parser(xlsfilepath):
+def parse_xls_into_txt_files(xlsfilepath):
     iterator = Iterator()
     # Input:
     book = open_workbook(xlsfilepath)
@@ -143,6 +153,7 @@ def parser(xlsfilepath):
             w = writer(fhandler, dialect='excel-tab')
             for l in lines:
                 w.writerow(l)
+    return iterator.fileinfo
 
 if __name__ == "__main__":
     if len(argv) < 2:
@@ -150,16 +161,17 @@ if __name__ == "__main__":
     else:
         xlsf = argv[1]
         try:
-            parser(xlsf)
+            fileinfo = parse_xls_into_txt_files(xlsf)
         except:
             print(f'Failed to transform "{xlsf}" to txt.')
             raise
         xlsfiledir = path.dirname(xlsf)
+        txt2csv = TXT2CSV(fileinfo=fileinfo)
         for txtf in listdir(xlsfiledir):
             if not txtf.endswith('.txt'):
                 continue
             try:
-                convert2csv(path.join(xlsfiledir, txtf))
+                txt2csv.convert_txt2csv(path.join(xlsfiledir, txtf), fileinfo)
             except:
                 print(f'Failed to transform "{txtf}" to csv.')
                 raise
