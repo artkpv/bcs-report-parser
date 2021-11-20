@@ -13,7 +13,8 @@ from xlrd import open_workbook
 from sys import argv
 from csv import writer
 from re import compile
-from os import path
+from os import path, listdir
+from txt2csv import convert2csv
 
 
 
@@ -30,7 +31,7 @@ class Iterator(object):
     def next(self, line):
         def clean(e):
             if isinstance(e, str):
-                return e.replace('\n', ' ')
+                return e.replace('\n', ' ').replace('\t', ' ')
             return e
         line = [clean(e) for e in line]
         self._state(line)
@@ -137,7 +138,7 @@ def parser(xlsfilepath):
     # Output:
     for fname, lines in iterator.files():
         bname = path.basename(xlsfilepath).replace('.xls', '')
-        outfile = f"{bname}_{getbasefilename(fname)}.csv"
+        outfile = f"{bname}_{getbasefilename(fname)}.txt"
         outfile = path.join(path.dirname(xlsfilepath), outfile)
         with open(outfile, 'w') as fhandler:
             w = writer(fhandler, dialect='excel-tab')
@@ -152,5 +153,14 @@ if __name__ == "__main__":
         try:
             parser(xlsf)
         except:
-            print(f'Failed to transform "{xlsf}" to csv.')
+            print(f'Failed to transform "{xlsf}" to txt.')
             raise
+        xlsfiledir = path.dirname(xlsf)
+        for txtf in listdir(xlsfiledir):
+            if not txtf.endswith('.txt'):
+                continue
+            try:
+                convert2csv(path.join(xlsfiledir, txtf))
+            except:
+                print(f'Failed to transform "{txtf}" to csv.')
+                raise
