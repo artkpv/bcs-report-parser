@@ -37,10 +37,11 @@ class TXT2CSV(object):
     def _deals_instruments(self, readf, writef):
         allreader = CSVReader(readf, dialect=CSVDIALECT)
         lines = list(allreader)
-        header = lines[2]
+        header = _trim_last_empty(lines[2])
         assert 'Сумма платежа' in header
-        myfields = ['Ticker', 'ISIN'] + header
+        myfields = header + ['Ticker', 'ISIN'] 
         myfields += self._fileinfo.keys()
+        self._fix_duplicate_names_in_header(myfields)
         wcsv = DictWriter(writef, fieldnames=myfields, dialect=CSVDIALECT)
         wcsv.writeheader()
         n = len(lines)
@@ -53,7 +54,8 @@ class TXT2CSV(object):
                 ticker = lines[i][1]
                 end = next(j for j, l in enumerate(lines[i:]) if any('Итого по' in f for f in l)) + i 
                 for row in lines[i+1: end]:
-                    cells = {header[inx]: el for inx, el in enumerate(row)}
+                    row = _trim_last_empty(row)
+                    cells = {myfields[inx]: el for inx, el in enumerate(row)}
                     cells['Ticker'] = ticker
                     cells['ISIN'] = isin
                     for k in self._fileinfo:
@@ -61,15 +63,22 @@ class TXT2CSV(object):
                     wcsv.writerow(cells)
                 i = end+1
 
+
+    def _fix_duplicate_names_in_header(self, header):
+        for i,f in enumerate(header[::-1]):
+            samenum = sum(1 for f2 in header if f2 == f)
+            if samenum > 1:
+                header[-i-1] = f"{f}{samenum}"
+
+
     def _deals_forex(self, readf, writef):
         allreader = CSVReader(readf, dialect=CSVDIALECT)
         lines = list(allreader)
-        header = lines[0]
+        header = _trim_last_empty(lines[0])
         n = len(lines)
-        myfields = [
-            'From',
-            'To' ] + header
+        myfields = header + [ 'From', 'To' ]
         myfields += self._fileinfo.keys()
+        self._fix_duplicate_names_in_header(myfields)
         wcsv = DictWriter(writef, fieldnames=myfields, dialect=CSVDIALECT)
         wcsv.writeheader()
         i = 1
@@ -85,7 +94,8 @@ class TXT2CSV(object):
                 fromcurrency = _getfield('Сопряж. валюта', lines[i])
                 end = next(j for j, l in enumerate(lines[i:]) if any('Итого по' in f for f in l)) + i 
                 for row in lines[i+1: end]:
-                    cells = {header[inx]: el for inx, el in enumerate(row)}
+                    row = _trim_last_empty(row)
+                    cells = {myfields[inx]: el for inx, el in enumerate(row)}
                     cells['From'] = tocurrency
                     cells['To'] = fromcurrency
                     for k in self._fileinfo:
@@ -122,7 +132,11 @@ class TXT2CSV(object):
                         else:
                             wcsv.writerow(cells)
 
-
+def _trim_last_empty(arr):
+    if not arr:
+        return arr
+    i = next(i for (i,e) in enumerate(arr[::-1]) if e)
+    return arr[:-i-1]
 
 
 if __name__ == '__main__':
