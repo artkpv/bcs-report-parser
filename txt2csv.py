@@ -26,7 +26,7 @@ class TXT2CSV(object):
         process = None
         with open(filename, mode="r") as readf:
             first = readf.readline()
-            if 'Акция' in first:
+            if 'Акция' in first or 'АДР' in first or 'Пай' in first:
                 process = self._deals_instruments
             elif 'Объём в валюте лота (в ед. валюты)' in first:
                 process = self._deals_forex
